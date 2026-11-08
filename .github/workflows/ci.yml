@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Rust format
+        run: cargo fmt --all --check
+      - name: Rust lint
+        run: cargo clippy -p tini-core --all-targets -- -D warnings
+      - name: Rust tests
+        run: cargo test -p tini-core
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: app/pnpm-lock.yaml }
+      - name: Frontend typecheck and build
+        working-directory: app
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm typecheck
+          pnpm build
+      - name: Python engine syntax
+        run: python3 -m py_compile engine/voxcpm/tini_engine.py
+
+  bundle:
+    needs: check
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: app/pnpm-lock.yaml }
+      - name: Bundled binaries (uv, whisper.cpp)
+        run: |
+          brew install cmake uv
+          mkdir -p app/src-tauri/binaries
+          cp "$(command -v uv)" app/src-tauri/binaries/uv-aarch64-apple-darwin
+          bash engine/scripts/build_whisper_macos.sh
+      - name: Bundle
+        working-directory: app
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tini-macos-arm64
+          path: target/release/bundle/dmg/*.dmg
+          if-no-files-found: error

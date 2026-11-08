@@ -1,0 +1,302 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  /* One warm neutral ramp (the brand's cream paper), three text roles, ink as the primary fill.
+     Coral (the brand's wave) marks sound only: playback, the spoken word, generation progress. */
+  --bg: #f6f4f1;
+  --surface: #ffffff;
+  --surface-2: #f1eee9;
+  --surface-3: #e8e4dd;
+  --border: #e4dfd7;
+  --border-strong: #cfc8bd;
+  --text: #1f1d2b;
+  --text-2: #4f4a44;
+  --muted: #7a7369;
+  --primary: #1f1d2b;
+  --primary-hover: #34313f;
+  --on-primary: #f5f1ea;
+  --accent: #d85a30;
+  --accent-soft: #fbe9e1;
+  --accent-strong: #b4461f;
+  --accent-fill: #b94a22;
+  --on-accent: #ffffff;
+  --green: #1f8a5b;
+  --green-soft: #e3f2ea;
+  --red: #c9372c;
+  --red-soft: #fbe6e3;
+  --amber: #a86d12;
+  --amber-soft: #fcf1dc;
+  --sidebar: #efebe5;
+  --card-shadow: 0 1px 2px rgb(31 29 43 / 0.05);
+  --overlay-shadow: 0 8px 24px rgb(31 29 43 / 0.1), 0 1px 2px rgb(31 29 43 / 0.06);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #141312;
+  --surface: #1a1918;
+  --surface-2: #22211f;
+  --surface-3: #2b2927;
+  --border: #2d2b28;
+  --border-strong: #3b3936;
+  --text: #eeebe5;
+  --text-2: #b6b0a7;
+  --muted: #8d877e;
+  --primary: #eeebe5;
+  --primary-hover: #ffffff;
+  --on-primary: #1f1d2b;
+  --accent: #f0997b;
+  --accent-soft: #3a261e;
+  --accent-strong: #f4ae95;
+  --accent-fill: #f0997b;
+  --on-accent: #1f1d2b;
+  --green: #4cc38a;
+  --green-soft: #17291f;
+  --red: #e5484d;
+  --red-soft: #3a1b1b;
+  --amber: #e6a940;
+  --amber-soft: #33281a;
+  --sidebar: #100f0e;
+  --card-shadow: none;
+  --overlay-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-accent-fill: var(--accent-fill);
+  --color-on-accent: var(--on-accent);
+  --color-green: var(--green);
+  --color-green-soft: var(--green-soft);
+  --color-red: var(--red);
+  --color-red-soft: var(--red-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-sidebar: var(--sidebar);
+  --shadow-card: var(--card-shadow);
+  --shadow-overlay: var(--overlay-shadow);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+  overflow: hidden;
+}
+
+input,
+textarea,
+[contenteditable],
+.selectable {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+button {
+  cursor: default;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* In the base layer so utilities (outline-none on fields that draw their own ring) win. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag,
+.drag-region button,
+.drag-region input,
+.drag-region select,
+.drag-region a,
+.drag-region [role="button"] {
+  -webkit-app-region: no-drag;
+}
+
+/* The only looping animation: the recording indicator, which is live. */
+@keyframes rec-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+.rec-pulse {
+  animation: rec-pulse 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec-pulse,
+  .fade-in {
+    animation: none;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.fade-in {
+  animation: slide-up 0.2s var(--ease);
+}
+
+/* --- script editor (CodeMirror) --- */
+.script-editor .cm-editor {
+  height: 100%;
+  background: transparent;
+  font-size: 15px;
+}
+.script-editor .cm-editor.cm-focused {
+  outline: none;
+}
+.script-editor .cm-scroller {
+  font-family: var(--font-sans);
+  line-height: 1.75;
+  padding: 10px 0 40px;
+}
+.script-editor .cm-content {
+  caret-color: var(--accent);
+  padding-right: 24px;
+}
+.script-editor .cm-gutters {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.script-editor .cm-lineNumbers .cm-gutterElement {
+  padding: 0 14px 0 18px;
+  min-width: 46px;
+  line-height: 26.25px;
+  cursor: pointer;
+}
+.script-editor .cm-lineNumbers .cm-gutterElement:hover {
+  color: var(--accent);
+}
+.script-editor .cm-activeLine {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.script-editor .cm-activeLineGutter {
+  background: transparent;
+  color: var(--text);
+}
+.script-editor .cm-cursor {
+  border-left-width: 2px;
+  border-left-color: var(--accent);
+}
+.script-editor .cm-selectionBackground,
+.script-editor .cm-focused .cm-selectionBackground {
+  background: color-mix(in srgb, var(--accent) 22%, transparent) !important;
+}
+.script-editor .pause-marker {
+  display: inline-block;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 6px;
+  margin-left: 6px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  vertical-align: 1px;
+}
+.script-editor .dictionary-match {
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 4px;
+}
+.script-editor .cm-lintRange-error {
+  background-image: none;
+  text-decoration: underline wavy var(--red);
+  text-underline-offset: 3px;
+}
+.script-editor .cm-lintRange-warning {
+  background-image: none;
+  text-decoration: underline wavy var(--amber);
+  text-underline-offset: 3px;
+}
+.cm-tooltip {
+  background: var(--surface) !important;
+  color: var(--text);
+  border: 1px solid var(--border) !important;
+  border-radius: 8px;
+  box-shadow: var(--card-shadow);
+  font-size: 12.5px;
+  overflow: hidden;
+}
+.cm-diagnostic {
+  padding: 6px 10px !important;
+  border-left-width: 3px !important;
+}
+.cm-diagnostic-error {
+  border-left-color: var(--red) !important;
+}
+.cm-diagnostic-warning {
+  border-left-color: var(--amber) !important;
+}
+.cm-lint-marker {
+  display: none;
+}
+
+.playing-word {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px var(--accent-fill);
+}

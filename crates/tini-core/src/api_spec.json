@@ -1,0 +1,621 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Tını API",
+    "version": "0.1.0",
+    "description": "Local HTTP API of Tını (voice design, reading and consented cloning with VoxCPM2). Listens on 127.0.0.1 only. Enable it in Ayarlar → API. Every /v1 route except /v1/health needs `Authorization: Bearer <token>`.",
+    "license": { "name": "Apache-2.0", "identifier": "Apache-2.0" }
+  },
+  "servers": [{ "url": "http://127.0.0.1:7860", "description": "Tını (yerel)" }],
+  "security": [{ "bearerAuth": [] }],
+  "tags": [
+    { "name": "system" },
+    { "name": "voices" },
+    { "name": "jobs" },
+    { "name": "text" },
+    { "name": "docs" }
+  ],
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "tags": ["system"],
+        "operationId": "health",
+        "summary": "Sağlık denetimi",
+        "description": "Sunucunun ayakta olduğunu ve uygulama sürümünü döner. Anahtar gerekmez.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Sunucu çalışıyor",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } }
+          }
+        }
+      }
+    },
+    "/v1/status": {
+      "get": {
+        "tags": ["system"],
+        "operationId": "getStatus",
+        "summary": "Uygulama durumu",
+        "description": "Motor, model, transkript modeli, sistem ve istatistik bilgisi (uygulamadaki get_status ile aynı nesne).",
+        "responses": {
+          "200": {
+            "description": "Durum",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Status" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/v1/voices": {
+      "get": {
+        "tags": ["voices"],
+        "operationId": "listVoices",
+        "summary": "Kitaplıktaki sesler",
+        "description": "Hazır sesler, tasarlanan sesler ve izinli klonlar. Okuma isteklerinde `voice` olarak `id` kullanılır.",
+        "responses": {
+          "200": {
+            "description": "Ses listesi",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/VoiceCard" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/v1/jobs": {
+      "post": {
+        "tags": ["jobs"],
+        "operationId": "createJob",
+        "summary": "Kuyruğa iş ekle",
+        "description": "Okuma, ses tasarımı, klon, satır yenileme, transkript, kalite kontrolü ya da altyazıdan seslendirme işini kuyruğa ekler (uygulamadaki enqueue_job ile aynı JSON). İş arka planda çalışır; durumunu GET /v1/jobs/{id} ile izleyin.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/JobRequest" },
+              "example": { "kind": "read", "voice": "builtin/cansu", "text": "Merhaba, bu bir deneme okumasıdır." }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Kuyruğa eklendi",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Job" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/Invalid" },
+          "503": { "$ref": "#/components/responses/NotReady" }
+        }
+      },
+      "get": {
+        "tags": ["jobs"],
+        "operationId": "listJobs",
+        "summary": "Üretimleri listele",
+        "description": "En yeni önce. Türe, duruma göre süzülebilir.",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/JobKind" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/JobStatus" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Üretimler",
+            "content": {
+              "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Job" } } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/v1/jobs/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+      "get": {
+        "tags": ["jobs"],
+        "operationId": "getJob",
+        "summary": "Tek üretim",
+        "description": "İşin durumu, ilerlemesi ve bitince sonucu (`result`).",
+        "responses": {
+          "200": {
+            "description": "Üretim",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Job" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/jobs/{id}/cancel": {
+      "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+      "post": {
+        "tags": ["jobs"],
+        "operationId": "cancelJob",
+        "summary": "İşi iptal et",
+        "description": "Kuyruktaki ya da çalışan işi iptal eder. Bitmiş işlerde etkisizdir.",
+        "responses": {
+          "204": { "description": "İptal istendi" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/jobs/{id}/audio": {
+      "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+      "get": {
+        "tags": ["jobs"],
+        "operationId": "getJobAudio",
+        "summary": "Üretimin ses dosyası",
+        "description": "Bitmiş okuma, klon ya da altyazıdan seslendirme işinin ana WAV dosyası (48 kHz, mono).",
+        "responses": {
+          "200": {
+            "description": "WAV",
+            "content": { "audio/wav": { "schema": { "type": "string", "contentMediaType": "audio/wav" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/NotDone" }
+        }
+      }
+    },
+    "/v1/text/check": {
+      "post": {
+        "tags": ["text"],
+        "operationId": "checkText",
+        "summary": "Metni denetle",
+        "description": "Dil, sorunlar, satır içi bulgular, tahmini ses ve iş süresi, sözlük eşleşmeleri.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TextCheckRequest" },
+              "example": { "text": "Saat 5'te başlıyoruz.", "language": "tr" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Denetim sonucu",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TextCheck" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/v1/text/fix": {
+      "post": {
+        "tags": ["text"],
+        "operationId": "fixText",
+        "summary": "Metni okunur yap",
+        "description": "Sayıları, kısaltmaları, kaynak göstermeleri, parantezleri, tırnakları ve cümleleri okunur biçime çevirir.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FixRequest" },
+              "example": { "text": "Toplantı 3 Mart'ta, saat 14.30'da (Dr. Ak ile).", "language": "tr" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Düzeltilmiş metin",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FixResult" } } }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "tags": ["docs"],
+        "operationId": "openapi",
+        "summary": "OpenAPI belgesi",
+        "description": "Bu belge (OpenAPI 3.1). Anahtar gerekmez.",
+        "security": [],
+        "responses": {
+          "200": { "description": "OpenAPI 3.1 JSON", "content": { "application/json": { "schema": { "type": "object" } } } }
+        }
+      }
+    },
+    "/docs": {
+      "get": {
+        "tags": ["docs"],
+        "operationId": "docs",
+        "summary": "API başvuru sayfası",
+        "description": "Uç noktaları curl örnekleriyle listeleyen HTML sayfa. Anahtar gerekmez.",
+        "security": [],
+        "responses": {
+          "200": { "description": "HTML", "content": { "text/html": { "schema": { "type": "string" } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Ayarlar → API bölümündeki anahtar (32 onaltılık karakter)."
+      }
+    },
+    "parameters": {
+      "JobId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "example": "20261108_143000_a1b2c3"
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Geçersiz istek (bozuk JSON, eksik alan)",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Unauthorized": {
+        "description": "Anahtar eksik ya da yanlış",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotFound": {
+        "description": "Bulunamadı",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotDone": {
+        "description": "Üretim henüz bitmedi",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Invalid": {
+        "description": "İstek doğrulanamadı; ayrıntılar `error.issues` içinde",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "NotReady": {
+        "description": "Motor ya da model hazır değil (Kurulum ekranı)",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "input | issues | engine | audio | config | db | io | json | network | cancelled | not_found | unauthorized | conflict | too_large"
+              },
+              "message": { "type": "string" },
+              "issues": { "type": "array", "items": { "$ref": "#/components/schemas/Issue" } }
+            }
+          }
+        }
+      },
+      "Issue": {
+        "type": "object",
+        "required": ["code", "message", "data"],
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "data": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "required": ["status", "version"],
+        "properties": {
+          "status": { "type": "string", "const": "ok" },
+          "version": { "type": "string" }
+        }
+      },
+      "Status": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "version": { "type": "string" },
+          "data_dir": { "type": "string" },
+          "engine": { "type": "object", "additionalProperties": true },
+          "model": { "type": "object", "additionalProperties": true },
+          "engine_label": { "type": "string" },
+          "whisper": { "type": "object", "additionalProperties": true },
+          "ffmpeg": { "type": ["string", "null"] },
+          "system": { "type": "object", "additionalProperties": true },
+          "stats": { "type": ["object", "null"], "additionalProperties": true }
+        }
+      },
+      "VoiceCard": {
+        "type": "object",
+        "required": ["id", "source", "folder", "name", "display_name", "language", "read_seed", "reference", "favorite", "noisy"],
+        "properties": {
+          "id": { "type": "string", "description": "`builtin/<name>` or `<name>/<variant>`", "example": "builtin/cansu" },
+          "source": { "type": "string", "enum": ["builtin", "designed", "clone"] },
+          "folder": { "type": "string" },
+          "name": { "type": "string" },
+          "display_name": { "type": "string" },
+          "alias": { "type": ["string", "null"] },
+          "variant": { "type": ["integer", "null"] },
+          "language": { "type": "string" },
+          "description": { "type": "string" },
+          "design_text": { "type": "string" },
+          "design_seed": { "type": ["integer", "null"] },
+          "read_seed": { "type": "integer" },
+          "reference": { "type": "string" },
+          "reference_s": { "type": ["number", "null"] },
+          "preview": { "type": ["string", "null"] },
+          "preview_text": { "type": ["string", "null"] },
+          "gender": { "type": ["string", "null"] },
+          "created_at": { "type": ["string", "null"] },
+          "job_id": { "type": ["string", "null"] },
+          "favorite": { "type": "boolean" },
+          "warning": { "type": ["string", "null"] },
+          "preview_error": { "type": ["string", "null"] },
+          "noise_margin_db": { "type": ["number", "null"] },
+          "noisy": { "type": "boolean" }
+        }
+      },
+      "JobKind": {
+        "type": "string",
+        "enum": ["design", "read", "clone", "line", "transcribe", "review", "timed"]
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": ["queued", "running", "done", "failed", "cancelled", "interrupted"]
+      },
+      "Job": {
+        "type": "object",
+        "required": ["id", "kind", "status", "created_at", "title", "text", "request", "starred", "notes", "completed", "total"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "$ref": "#/components/schemas/JobKind" },
+          "status": { "$ref": "#/components/schemas/JobStatus" },
+          "created_at": { "type": "string" },
+          "started_at": { "type": ["string", "null"] },
+          "finished_at": { "type": ["string", "null"] },
+          "title": { "type": "string" },
+          "voice_id": { "type": ["string", "null"] },
+          "voice_name": { "type": ["string", "null"] },
+          "language": { "type": ["string", "null"] },
+          "text": { "type": "string" },
+          "request": { "type": "object", "additionalProperties": true, "description": "The JobRequest as queued" },
+          "result": {
+            "type": ["object", "null"],
+            "additionalProperties": true,
+            "description": "Set when done. Readings: `wav`, `lines`, `words`, `audio_s`; design studies: `name`, `description`, `design_text`, `language`, `variants[]`"
+          },
+          "folder": { "type": ["string", "null"] },
+          "audio_s": { "type": ["number", "null"] },
+          "duration_s": { "type": ["number", "null"] },
+          "gpu_peak_mb": { "type": ["integer", "null"] },
+          "error": { "type": ["string", "null"] },
+          "starred": { "type": "boolean" },
+          "notes": { "type": "string" },
+          "completed": { "type": "integer" },
+          "total": { "type": "integer" },
+          "estimated_s": { "type": ["number", "null"] },
+          "parent_id": { "type": ["string", "null"] }
+        }
+      },
+      "JobRequest": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/DesignRequest" },
+          { "$ref": "#/components/schemas/ReadRequest" },
+          { "$ref": "#/components/schemas/CloneRequest" },
+          { "$ref": "#/components/schemas/LineRequest" },
+          { "$ref": "#/components/schemas/TranscribeRequest" },
+          { "$ref": "#/components/schemas/ReviewRequest" },
+          { "$ref": "#/components/schemas/TimedRequest" }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "design": "#/components/schemas/DesignRequest",
+            "read": "#/components/schemas/ReadRequest",
+            "clone": "#/components/schemas/CloneRequest",
+            "line": "#/components/schemas/LineRequest",
+            "transcribe": "#/components/schemas/TranscribeRequest",
+            "review": "#/components/schemas/ReviewRequest",
+            "timed": "#/components/schemas/TimedRequest"
+          }
+        }
+      },
+      "DesignRequest": {
+        "type": "object",
+        "description": "Voice design study: variants are written outside the library; add the ones you like in the app.",
+        "required": ["kind", "name", "description", "text"],
+        "properties": {
+          "kind": { "type": "string", "const": "design" },
+          "name": { "type": "string" },
+          "description": { "type": "string", "description": "Voice description (English works best; no parentheses)" },
+          "text": { "type": "string", "description": "Design text, 1-3 sentences (≤ 30 s)" },
+          "language": { "type": ["string", "null"], "description": "tr | en | ... | auto" },
+          "variants": { "type": "integer", "minimum": 1, "maximum": 50, "default": 3 },
+          "seeds": { "type": ["array", "null"], "items": { "type": "integer", "minimum": 0 } },
+          "preview_text": { "type": ["string", "null"], "description": "Optional text read with each variant" }
+        }
+      },
+      "ReadRequest": {
+        "type": "object",
+        "required": ["kind", "voice", "text"],
+        "properties": {
+          "kind": { "type": "string", "const": "read" },
+          "voice": { "type": "string", "description": "VoiceCard.id" },
+          "text": { "type": "string", "description": "One sentence per line; `|| <seconds|paragraf>` sets the pause after a line" },
+          "language": { "type": ["string", "null"] },
+          "title": { "type": ["string", "null"] }
+        }
+      },
+      "CloneRequest": {
+        "type": "object",
+        "required": ["kind", "recording", "recording_text", "text", "consent"],
+        "properties": {
+          "kind": { "type": "string", "const": "clone" },
+          "recording": { "type": "string", "description": "Absolute path of a 3-36 s recording on this Mac" },
+          "recording_text": { "type": "string", "description": "Exact transcript of the recording" },
+          "text": { "type": "string" },
+          "seed": { "type": ["integer", "null"] },
+          "consent": { "type": "boolean", "description": "Must be true: the voice is yours or you have the owner's explicit permission" },
+          "library_name": { "type": ["string", "null"], "description": "Keep the recording in the library under this name" }
+        }
+      },
+      "LineRequest": {
+        "type": "object",
+        "required": ["kind", "job_id", "line"],
+        "properties": {
+          "kind": { "type": "string", "const": "line" },
+          "job_id": { "type": "string" },
+          "line": { "type": "integer", "minimum": 1 },
+          "text": { "type": ["string", "null"] },
+          "seed": { "type": ["integer", "null"] }
+        }
+      },
+      "TranscribeRequest": {
+        "type": "object",
+        "required": ["kind", "file"],
+        "properties": {
+          "kind": { "type": "string", "const": "transcribe" },
+          "file": { "type": "string", "description": "Absolute path of an audio/video file on this Mac" },
+          "language": { "type": ["string", "null"] }
+        }
+      },
+      "ReviewRequest": {
+        "type": "object",
+        "required": ["kind", "job_id"],
+        "properties": {
+          "kind": { "type": "string", "const": "review" },
+          "job_id": { "type": "string" }
+        }
+      },
+      "Cue": {
+        "type": "object",
+        "required": ["t0", "t1", "text"],
+        "properties": {
+          "t0": { "type": "number" },
+          "t1": { "type": "number" },
+          "text": { "type": "string" },
+          "speaker": { "type": ["string", "null"] }
+        }
+      },
+      "TimedRequest": {
+        "type": "object",
+        "required": ["kind", "voice", "cues"],
+        "properties": {
+          "kind": { "type": "string", "const": "timed" },
+          "voice": { "type": "string" },
+          "cues": { "type": "array", "items": { "$ref": "#/components/schemas/Cue" } },
+          "speaker_voices": { "type": "object", "additionalProperties": { "type": "string" } },
+          "language": { "type": ["string", "null"] },
+          "max_speedup": { "type": ["number", "null"], "minimum": 1.0, "maximum": 1.6 },
+          "video": { "type": ["string", "null"] },
+          "original_audio": { "type": ["string", "null"], "enum": ["duck", "remove", null] },
+          "title": { "type": ["string", "null"] }
+        }
+      },
+      "TextCheckRequest": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": { "type": "string" },
+          "language": { "type": ["string", "null"] },
+          "voice": { "type": ["string", "null"], "description": "VoiceCard.id (its language is the fallback)" }
+        }
+      },
+      "Finding": {
+        "type": "object",
+        "required": ["line", "column", "length", "code", "message"],
+        "properties": {
+          "line": { "type": "integer" },
+          "column": { "type": "integer" },
+          "length": { "type": "integer" },
+          "code": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      },
+      "TextCheck": {
+        "type": "object",
+        "required": ["language", "issues", "findings", "line_count", "audio_s", "job_s", "estimate_samples", "dictionary"],
+        "properties": {
+          "language": { "type": "string" },
+          "issues": { "type": "array", "items": { "$ref": "#/components/schemas/Issue" } },
+          "findings": { "type": "array", "items": { "$ref": "#/components/schemas/Finding" } },
+          "line_count": { "type": "integer" },
+          "audio_s": { "type": "number" },
+          "job_s": { "type": "number" },
+          "estimate_samples": { "type": "integer" },
+          "dictionary": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "line": { "type": "integer" },
+                "column": { "type": "integer" },
+                "length": { "type": "integer" },
+                "pronunciation": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "FixOptions": {
+        "type": "object",
+        "properties": {
+          "numbers": { "type": "boolean", "default": true },
+          "abbreviations": { "type": "boolean", "default": true },
+          "citations": { "type": "boolean", "default": true },
+          "parentheses": { "type": "boolean", "default": true },
+          "quotes": { "type": "boolean", "default": true },
+          "sentences": { "type": "boolean", "default": true }
+        }
+      },
+      "FixRequest": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": { "type": "string" },
+          "language": { "type": ["string", "null"] },
+          "voice": { "type": ["string", "null"] },
+          "options": { "$ref": "#/components/schemas/FixOptions" }
+        }
+      },
+      "Change": {
+        "type": "object",
+        "required": ["kind", "before", "after"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["number", "abbreviation", "citation", "parenthesis", "quote", "sentence"] },
+          "before": { "type": "string" },
+          "after": { "type": "string" }
+        }
+      },
+      "FixResult": {
+        "type": "object",
+        "required": ["language", "text", "changes", "remaining"],
+        "properties": {
+          "language": { "type": "string" },
+          "text": { "type": "string" },
+          "changes": { "type": "array", "items": { "$ref": "#/components/schemas/Change" } },
+          "remaining": { "type": "array", "items": { "$ref": "#/components/schemas/Finding" } }
+        }
+      }
+    }
+  }
+}

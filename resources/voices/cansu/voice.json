@@ -1,0 +1,13 @@
+{
+  "name": "cansu",
+  "display_name": "Cansu",
+  "language": "tr",
+  "source": "designed",
+  "design_text": "Merhaba, bugün sizinle küçük ama ilginç bir konuyu paylaşmak istiyorum. Bazen hayat, hiç beklemediğimiz anda güzel sürprizler sunar. Güneşli bir sabah, çiçeklerin arasında yürümek gerçekten huzur verici. Peki, siz hiç düşündünüz mü? Öğrenmek, keşfetmek ve yeni şeyler denemek neden bu kadar heyecan verici? Bence her yeni gün, farklı bir başlangıç için harika bir fırsat.",
+  "read_seed": 42,
+  "reference": "reference.wav",
+  "reference_s": 25.31,
+  "synthetic": true,
+  "distribution": "Created with Tını's voice design (VoxCPM2). It is a synthetic voice, not a recording or clone of a real person.",
+  "noise_margin_db": 51.7
+}

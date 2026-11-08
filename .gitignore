@@ -1,0 +1,26 @@
+# build output
+target/
+app/node_modules/
+app/dist/
+app/src-tauri/gen/
+
+# bundled third-party binaries (built or copied locally, see README)
+app/src-tauri/binaries/
+
+# UI preview data captured from a local data dir (may contain personal data)
+app/preview-data/
+
+# whisper.cpp build cache
+engine/.build/
+
+# Python
+__pycache__/
+*.pyc
+
+.DS_Store
+
+# local Claude Code skills (third-party, not part of the project)
+.claude/skills/
+
+# internal engine analysis and measurement notes (kept locally)
+docs/voxcpm-analysis.tr.md

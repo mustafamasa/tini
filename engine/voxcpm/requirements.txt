@@ -1,0 +1,15 @@
+# Tını voice engine: official VoxCPM plus only the runtime dependencies.
+# voxcpm is installed with --no-deps (demo/training packages such as gradio, funasr, modelscope, datasets are not needed).
+torch==2.15.0
+torchaudio==2.11.1
+transformers==5.22.2
+tokenizers==0.23.3
+safetensors==0.8.0
+huggingface-hub==2.4.0
+einops==0.8.2
+librosa==1.0.0
+soundfile==0.14.0
+numpy==2.5.4
+pydantic==2.14.3
+regex==2026.11.7
+tqdm==4.70.1

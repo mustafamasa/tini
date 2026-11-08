@@ -1,0 +1,63 @@
+name: release
+
+# Pushing a version tag (v0.2.0, ...) builds the macOS app and publishes Tini_<version>_aarch64.dmg on the
+# repository's Releases page. If the release already exists with a DMG (for example one uploaded by hand), the
+# existing file is kept.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and publish (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm, cache-dependency-path: app/pnpm-lock.yaml }
+      - name: Bundled binaries (uv, whisper.cpp)
+        run: |
+          brew install cmake uv
+          mkdir -p app/src-tauri/binaries
+          cp "$(command -v uv)" app/src-tauri/binaries/uv-aarch64-apple-darwin
+          bash engine/scripts/build_whisper_macos.sh
+      - name: Bundle
+        working-directory: app
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm tauri build --bundles dmg
+      - name: Rename the DMG (ASCII file name for the release asset)
+        run: |
+          version="${TAG#v}"
+          src=$(ls target/release/bundle/dmg/*.dmg | head -n 1)
+          mkdir -p dist
+          cp "$src" "dist/Tini_${version}_aarch64.dmg"
+          echo "DMG=dist/Tini_${version}_aarch64.dmg" >> "$GITHUB_ENV"
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+      - name: Publish
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            if gh release view "$TAG" --json assets --jq '.assets[].name' | grep -q '\.dmg$'; then
+              echo "Release $TAG already has a DMG; keeping it."
+            else
+              gh release upload "$TAG" "$DMG"
+            fi
+          else
+            gh release create "$TAG" "$DMG" --title "Tını $VERSION" --generate-notes
+          fi
